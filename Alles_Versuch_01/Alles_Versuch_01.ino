@@ -3,10 +3,14 @@
 #include <Adafruit_Sensor.h>
 #include <DHT.h>
 #include <Arduino_GFX_Library.h>
-#include <AccelStepper.h>
+
 
 #define DHT_PIN 12
 #define DHT_TYPE DHT22
+
+int step_count = 0;
+int step_curr  = 170;
+int step_delay = 10;
 
 DHT dht(DHT_PIN, DHT_TYPE);
 SGP30 sgp;
@@ -18,7 +22,6 @@ Arduino_GFX *gfx = new Arduino_GC9A01(bus, 7 /* RST */, 0 /* rotation */, true /
 const int stepPin = 3;
 const int dirPin = 2;
 
-AccelStepper stepper(stepPin, dirPin);
 
 int up_pos_x  = 70;
 int up_pos_y  = 70;
@@ -57,33 +60,66 @@ void loop() {
   uint16_t co2 = sgp.CO2;
   uint16_t tvoc = sgp.TVOC;
 
-  delay(200);
+  step_count = map(co2, 100, 1000, 0, 500);
+
+
+
+  if (step_curr < step_count){
+    step_curr += 1;
+    digitalWrite(dirPin, HIGH);
+    digitalWrite(stepPin, HIGH);
+    delay(step_delay);
+    digitalWrite(stepPin, LOW); 
+    delay(step_delay);
+  } else if (step_curr > step_count){
+    step_curr -= 1;
+    digitalWrite(dirPin, LOW);
+    digitalWrite(stepPin, HIGH);
+    delay(step_delay);
+    digitalWrite(stepPin, LOW); 
+    delay(step_delay);
+  }
+
+
+  // if (step_curr <= step_count){
+  //   digitalWrite(dirPin, HIGH);
+  //   for (;step_curr <= step_count;step_curr += 1){
+  //     digitalWrite(stepPin, HIGH);
+  //     delay(step_delay);
+  //     digitalWrite(stepPin, LOW); 
+  //     delay(step_delay);
+  //   }
+  // } else if (step_curr >= step_count){
+  //   digitalWrite(dirPin, LOW);
+  //   for (;step_curr >= step_count;step_curr -= 1){
+  //     digitalWrite(stepPin, HIGH);
+  //     delay(step_delay);
+  //     digitalWrite(stepPin, LOW); 
+  //     delay(step_delay);
+  //   }
+  // }
+
+
+  Serial.println(step_count);
+  Serial.println(step_curr);
 
   // Lesen der Temperatur- und Luftfeuchtigkeitswerte vom DHT22-Sensor
   float temperature = dht.readTemperature();
   float humidity = dht.readHumidity();
 
   // Ausgabe der Werte auf dem seriellen Monitor
-  Serial.print("Temperature: ");
-  Serial.print(temperature);
-  Serial.print(" °C\tHumidity: ");
-  Serial.print(humidity);
-  Serial.print(" %\t");
+  // Serial.print("Temperature: ");
+  // Serial.print(temperature);
+  // Serial.print(" °C\tHumidity: ");
+  // Serial.print(humidity);
+  // Serial.print(" %\t");
   Serial.print("eCO2: ");
-  Serial.print(co2);
-  Serial.print(" ppm\tTVOC: ");
-  Serial.print(tvoc);
-  Serial.println(" ppb");
+  Serial.println(co2);
+  // Serial.print(" ppm\tTVOC: ");
+  // Serial.print(tvoc);
+  // Serial.println(" ppb");
 
-  // Motorsteuerung basierend auf dem CO2-Wert
-  if (co2 > 401) {
-    stepper.moveTo(0); // Position für "hoher" CO2-Wert
-    } else if (co2 < 400) {
-    stepper.moveTo(1000); // Position für "niedriger" CO2-Wert
-  }
 
-  // Bewegung des Stepper Motors
-  stepper.run();
 
   gfx->setCursor(up_pos_x, up_pos_y);
   gfx->print(temperature, 2);
@@ -92,5 +128,5 @@ void loop() {
   gfx->print(humidity, 2);
   gfx->print(" %");
 
-  delay(500);
+
 }
